@@ -36,7 +36,7 @@ uv run collect_data.py
 
 # Manual
 
-* collect_data.py
+1. collect_data.py
 ```
 uv run collect_data.py
 ```
@@ -47,7 +47,7 @@ press 'space' : Save a frame
 press 'q' or 'esc' : close
 
 
-* depth_test.py
+2. depth_test.py
 ```
 uv run depth_test.py
 ```
