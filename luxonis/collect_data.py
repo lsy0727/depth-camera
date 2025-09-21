@@ -14,7 +14,6 @@ class OAKDDataCollector:
         self.depth_dir = os.path.join(output_dir, "depth")
         self.annotations_dir = os.path.join(output_dir, "annotations")
         
-        # 디렉토리 생성
         os.makedirs(self.rgb_dir, exist_ok=True)
         os.makedirs(self.depth_dir, exist_ok=True)
         os.makedirs(self.annotations_dir, exist_ok=True)
@@ -25,32 +24,38 @@ class OAKDDataCollector:
         self.setup_pipeline()
     
     def setup_pipeline(self):
-        """OAK-D 파이프라인 설정 (720p 해상도, 성능 최적화)"""
+        """OAK-D 파이프라인 설정 (DepthAI 표준 Depth 계산 적용)"""
         self.pipeline = dai.Pipeline()
         
-        # 컬러 카메라 설정 (640x400 해상도)
+        # 컬러 카메라 설정
         self.cam_rgb = self.pipeline.create(dai.node.ColorCamera)
         self.cam_rgb.setPreviewSize(640, 400)
         self.cam_rgb.setInterleaved(False)
-        self.cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_720_P)
+        self.cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
         self.cam_rgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
+        self.cam_rgb.setFps(30)
         
         # 스테레오 깊이 카메라 설정
         self.stereo = self.pipeline.create(dai.node.StereoDepth)
-        # High accuracy 설정을 위한 개별 설정들
+        self.stereo.setDefaultProfilePreset(dai.node.StereoDepth.PresetMode.HIGH_DENSITY)
+        self.stereo.initialConfig.setConfidenceThreshold(245)
         self.stereo.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)
         self.stereo.setDepthAlign(dai.CameraBoardSocket.CAM_A)
         self.stereo.setLeftRightCheck(True)
         self.stereo.setSubpixel(True)
         self.stereo.setExtendedDisparity(False)
+        self.stereo.initialConfig.setDisparityShift(0)
+        self.stereo.setOutputSize(1280, 720)
         
-        # 모노 카메라 설정 (400p 해상도)
+        # 모노 카메라 설정
         self.mono_left = self.pipeline.create(dai.node.MonoCamera)
         self.mono_right = self.pipeline.create(dai.node.MonoCamera)
-        self.mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
-        self.mono_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+        self.mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_720_P)
+        self.mono_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_720_P)
         self.mono_left.setBoardSocket(dai.CameraBoardSocket.CAM_B)
         self.mono_right.setBoardSocket(dai.CameraBoardSocket.CAM_C)
+        self.mono_left.setFps(30)
+        self.mono_right.setFps(30)
         
         # 연결
         self.mono_left.out.link(self.stereo.left)
@@ -66,19 +71,16 @@ class OAKDDataCollector:
         self.stereo.depth.link(self.xout_depth.input)
     
     def save_frame_data(self, frame_rgb, frame_depth, fps=None):
-        """프레임 데이터 저장 (향상된 메타데이터 포함)"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # 밀리초까지
+        """프레임 데이터 저장 (디스패리티 통계 포함)"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
         frame_id = f"frame_{self.frame_count:06d}_{timestamp}"
         
-        # RGB 이미지 저장
         rgb_path = os.path.join(self.rgb_dir, f"{frame_id}.jpg")
         cv2.imwrite(rgb_path, frame_rgb)
         
-        # Depth 이미지 저장 (16비트 PNG로 저장)
         depth_path = os.path.join(self.depth_dir, f"{frame_id}.png")
         cv2.imwrite(depth_path, frame_depth.astype(np.uint16))
         
-        # 깊이 데이터 분석
         valid_depth = frame_depth[frame_depth > 0]
         depth_stats = {}
         if len(valid_depth) > 0:
@@ -102,7 +104,6 @@ class OAKDDataCollector:
                 "std_depth": 0.0
             }
         
-        # 메타데이터 저장
         metadata = {
             "frame_id": frame_id,
             "timestamp": timestamp,
@@ -114,28 +115,30 @@ class OAKDDataCollector:
             "fps": fps if fps is not None else 0.0,
             "camera_settings": {
                 "rgb_resolution": "640x400",
-                "depth_resolution": "400p",
+                "depth_resolution": "720p",
                 "depth_align": "CAM_A",
                 "median_filter": "KERNEL_7x7",
+                "confidence_threshold": 245,
                 "left_right_check": True,
-                "subpixel": True
+                "subpixel": True,
+                "extended_disparity": False,
+                "disparity_shift": 0,
+                "preset_mode": "HIGH_DENSITY"
             }
         }
         
         metadata_path = os.path.join(self.annotations_dir, f"{frame_id}.json")
         with open(metadata_path, 'w') as f:
-            json.dump(metadata, f, indent=2)
+            json.dump(metadata, f)
         
         self.frame_count += 1
         return frame_id, metadata
     
     def mouse_callback(self, event, x, y, flags, param):
-        """마우스 콜백 함수 - depth 값 표시"""
         if event == cv2.EVENT_MOUSEMOVE:
             self.mouse_pos = (x, y)
     
     def collect_data(self, max_frames=None, save_interval=1):
-        """데이터 수집 시작 (고성능 최적화 버전)"""
         print(f"데이터 수집을 시작합니다. 저장 위치: {self.output_dir}")
         print("키보드 조작:")
         print("  - SPACE: 프레임 저장")
@@ -145,8 +148,6 @@ class OAKDDataCollector:
         print("  - Depth 카메라 영상에 마우스를 올리면 해당 위치의 depth 값이 표시됩니다")
         
         continuous_save = False
-        
-        # FPS 계산을 위한 변수
         fps_counter = 0
         start_time = time.time()
         current_fps = 0.0
@@ -158,131 +159,111 @@ class OAKDDataCollector:
                 q_rgb = device.getOutputQueue(name="rgb", maxSize=4, blocking=True)
                 q_depth = device.getOutputQueue(name="depth", maxSize=4, blocking=True)
                 
-                # 마우스 콜백 설정
                 cv2.namedWindow("OAK-D Depth Camera", cv2.WINDOW_AUTOSIZE)
                 cv2.setMouseCallback("OAK-D Depth Camera", self.mouse_callback)
                 
                 while True:
-                    # 프레임 가져오기 (blocking=True)
                     in_rgb = q_rgb.get()
                     in_depth = q_depth.get()
-                    
                     frame_rgb = in_rgb.getCvFrame()
                     frame_depth = in_depth.getFrame()
                     
-                    # 현재 depth 프레임 저장 (마우스 콜백용)
-                    self.current_depth_frame = frame_depth.copy()
+                    # 프레임 복사 최소화
+                    frame_rgb_original = frame_rgb
+                    frame_depth_original = frame_depth
+                    self.current_depth_frame = frame_depth
                     
-                    # 깊이 데이터 분석 (성능 최적화를 위해 주석 처리)
+                    # Depth 통계 계산
                     valid_depth = frame_depth[frame_depth > 0]
+                    depth_stats = {
+                        "valid_pixels": int(len(valid_depth)),
+                        "total_pixels": int(frame_depth.size),
+                        "valid_ratio": float(len(valid_depth) / frame_depth.size) if len(valid_depth) > 0 else 0.0
+                    }
                     
-                    # 고성능 깊이 시각화 (FPS 최적화)
-                    # 모든 depth 값을 표시하되, 정확도에 따라 구분
-                    min_depth = 100     # 10cm
-                    max_depth = 5000  # 5m
-                    
-                    # 빠른 깊이 처리
-                    depth_clipped = np.clip(frame_depth, min_depth, max_depth)
-                    depth_clipped[frame_depth == 0] = 0
-                    
-                    # 빠른 정규화
+                    min_depth = 100
+                    max_depth = 5000
+                    depth_clipped = np.clip(frame_depth, min_depth, max_depth) * (frame_depth > 0)
                     depth_normalized = (depth_clipped - min_depth) / (max_depth - min_depth)
-                    depth_normalized = np.clip(depth_normalized, 0, 1)
-                    depth_8bit = (depth_normalized * 255).astype(np.uint8)
+                    depth_vis = (depth_normalized * 255).astype(np.uint8)
                     
-                    # JET 컬러맵 적용
-                    depth_vis = cv2.applyColorMap(depth_8bit, cv2.COLORMAP_JET)
+                    frame_rgb = cv2.resize(frame_rgb, (640, 400))
+                    depth_vis = cv2.resize(depth_vis, (640, 400))
                     
-                    # 0값 영역을 검은색으로 설정
-                    depth_vis[frame_depth == 0] = [0, 0, 0]
-                    
-                    # 마우스 위치의 depth 값 표시
+                    depth_vis_color = cv2.cvtColor(depth_vis, cv2.COLOR_GRAY2BGR)
                     if self.current_depth_frame is not None:
                         mouse_x, mouse_y = self.mouse_pos
-                        if (0 <= mouse_x < frame_depth.shape[1] and 
-                            0 <= mouse_y < frame_depth.shape[0]):
-                            depth_value = frame_depth[mouse_y, mouse_x]
+                        if 0 <= mouse_x < 640 and 0 <= mouse_y < 400:
+                            # 마우스 좌표를 원본 Depth 좌표로 변환
+                            scale_x = frame_depth.shape[1] / 640
+                            scale_y = frame_depth.shape[0] / 400
+                            orig_x = int(mouse_x * scale_x)
+                            orig_y = int(mouse_y * scale_y)
+                            depth_value = frame_depth[orig_y, orig_x]
                             
-                            # 마우스 위치에 십자가 표시
-                            cv2.drawMarker(depth_vis, (mouse_x, mouse_y), (255, 255, 255), 
-                                         cv2.MARKER_CROSS, 10, 2)
+                            cv2.drawMarker(depth_vis_color, (mouse_x, mouse_y), (255, 255, 255), cv2.MARKER_CROSS, 10, 2)
                             
-                            # depth 값 유효성 검사 (정확도에 따른 구분)
                             if depth_value > 0 and 100 <= depth_value <= 5000:
-                                # 정확한 측정 범위
                                 depth_text = f"Depth: {depth_value}mm ({depth_value/10:.1f}cm)"
-                                cv2.putText(depth_vis, depth_text, (mouse_x + 15, mouse_y - 15), 
-                                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                                cv2.putText(depth_vis_color, depth_text, (mouse_x + 15, mouse_y - 15), 
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
                             elif depth_value > 0 and depth_value < 100:
-                                # 가까운 거리 (부정확할 수 있음)
                                 depth_text = f"Close: {depth_value}mm ({depth_value/10:.1f}cm) *"
-                                cv2.putText(depth_vis, depth_text, (mouse_x + 15, mouse_y - 15), 
-                                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                                cv2.putText(depth_vis_color, depth_text, (mouse_x + 15, mouse_y - 15), 
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
                             elif depth_value > 5000:
-                                # 너무 먼 거리
                                 depth_text = f"Far: {depth_value}mm ({depth_value/10:.1f}cm)"
-                                cv2.putText(depth_vis, depth_text, (mouse_x + 15, mouse_y - 15), 
-                                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+                                cv2.putText(depth_vis_color, depth_text, (mouse_x + 15, mouse_y - 15), 
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
                             else:
-                                # 측정 불가
-                                cv2.putText(depth_vis, "No depth data", (mouse_x + 15, mouse_y - 15), 
-                                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                                cv2.putText(depth_vis_color, "No depth data", (mouse_x + 15, mouse_y - 15), 
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
                     
-                    # FPS 계산 및 표시 (최적화)
                     fps_counter += 1
-                    if fps_counter % 15 == 0:  # 15프레임마다 FPS 업데이트 (성능 향상)
+                    if fps_counter % 30 == 0:
                         elapsed_time = time.time() - start_time
                         current_fps = fps_counter / elapsed_time
                         fps_counter = 0
                         start_time = time.time()
                     
-                    # 상태 정보 표시
-                    status_text = f"Frames: {self.frame_count}"
+                    status_text = f"Frames: {self.frame_count} Valid: {depth_stats['valid_ratio']:.2f}"
                     if continuous_save:
                         status_text += " [AUTO SAVE]"
                     
-                    # FPS 표시
                     if current_fps > 0:
                         fps_text = f"FPS: {current_fps:.1f}"
-                        cv2.putText(frame_rgb, fps_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                        cv2.putText(depth_vis, fps_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                        cv2.putText(frame_rgb, fps_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                        cv2.putText(depth_vis_color, fps_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
                     
-                    # 프레임 수 표시
-                    cv2.putText(frame_rgb, status_text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                    cv2.putText(depth_vis, status_text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                    cv2.putText(frame_rgb, status_text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                    cv2.putText(depth_vis_color, status_text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
                     
-                    # 깊이 범위 정보 표시
                     if len(valid_depth) > 0:
                         depth_text = f"Range: 0-{max_depth}mm (0-5m, * = less accurate)"
-                        cv2.putText(depth_vis, depth_text, (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+                        cv2.putText(depth_vis_color, depth_text, (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
                     else:
-                        cv2.putText(depth_vis, "No depth data", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1)
+                        cv2.putText(depth_vis_color, "No depth data", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
                     
-                    # 연속 저장 또는 수동 저장
                     should_save = False
                     if continuous_save and self.frame_count % save_interval == 0:
                         should_save = True
                     
-                    # 윈도우에 표시
                     cv2.imshow("OAK-D RGB Camera", frame_rgb)
-                    cv2.imshow("OAK-D Depth Camera", depth_vis)
+                    cv2.imshow("OAK-D Depth Camera", depth_vis_color)
                     
-                    # 키 입력 처리 (성능 최적화)
                     key = cv2.waitKey(1) & 0xFF
-                    if key == ord(' '):  # SPACE
+                    if key == ord(' '):
                         should_save = True
-                    elif key == ord('a'):  # 'a'
+                    elif key == ord('a'):
                         continuous_save = not continuous_save
                         print(f"연속 저장: {'ON' if continuous_save else 'OFF'}")
-                    elif key == ord('q') or key == 27:  # 'q' 또는 ESC
+                    elif key == ord('q') or key == 27:
                         break
                     
-                    # 프레임 저장
                     if should_save:
-                        frame_id, metadata = self.save_frame_data(frame_rgb, frame_depth, current_fps)
-                        print(f"저장됨: {frame_id} (FPS: {current_fps:.1f})")
+                        frame_id, metadata = self.save_frame_data(frame_rgb_original, frame_depth_original, current_fps)
+                        print(f"저장됨: {frame_id} (FPS: {current_fps:.1f}, Valid Ratio: {metadata['depth_stats']['valid_ratio']:.2f})")
                         
-                        # 최대 프레임 수 확인
                         if max_frames and self.frame_count >= max_frames:
                             print(f"최대 프레임 수({max_frames})에 도달했습니다.")
                             break
