@@ -1,5 +1,3 @@
-<img width="1855" height="607" alt="image" src="https://github.com/user-attachments/assets/e1c3b810-0082-480f-8e6a-d7a10ad1a09a" /># OAK-D S2, OAK-D WIDE, OAK-D LITE
-
 # Environment setup (PowerShell)
 
 1. Verify the installed Python version
@@ -30,7 +28,7 @@ uv venv .venv --python 3.10.8
 uv pip install -r requirements.txt
 ```
 
-6. 실행
+6. Execute
 ```
 uv run collect_data.py
 ```
