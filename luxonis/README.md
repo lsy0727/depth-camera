@@ -54,3 +54,7 @@ https://github.com/lsy0727/depth-camera/blob/d7d66afd0ce0134d1f896fb9c8a47240c46
 uv run depth_test.py
 ```
 - Print depth in the terminal
+
+<img width="1630" height="536" alt="image" src="https://github.com/user-attachments/assets/910bb7ac-2285-43cf-b094-b2239c322b80" />
+
+<img width="698" height="634" alt="image" src="https://github.com/user-attachments/assets/92f848bf-c25f-482d-96a9-a5083f94d56f" />
