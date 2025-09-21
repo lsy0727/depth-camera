@@ -57,4 +57,5 @@ uv run depth_test.py
 
 <img width="1631" height="540" alt="image" src="https://github.com/user-attachments/assets/a66e81eb-6298-4bef-9168-daec6e308d3c" />
 
-<img width="698" height="634" alt="image" src="https://github.com/user-attachments/assets/92f848bf-c25f-482d-96a9-a5083f94d56f" />
+<img width="729" height="662" alt="image" src="https://github.com/user-attachments/assets/40e39f99-0d82-4982-86e9-029623b5761e" />
+
