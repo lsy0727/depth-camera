@@ -4,7 +4,7 @@
 ```
 uv python list
 ```
--> You can view the various Python versions and their installation paths
+-> Python version and installation path are shown
 
 <img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/01a41a52-bb14-4729-b02d-c4d7b182b16f" />
 
