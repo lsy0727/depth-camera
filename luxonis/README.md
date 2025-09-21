@@ -1,3 +1,5 @@
+[install uv](https://github.com/lsy0727/uv_setting)
+
 # Environment setup (PowerShell)
 
 1. Verify the installed Python version
