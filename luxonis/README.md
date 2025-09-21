@@ -40,17 +40,17 @@ uv run collect_data.py
 ```
 uv run collect_data.py
 ```
-press 'a' : Auto-save frame ON/OFF (Save every 5 frames)
+- press 'a' : Auto-save frame ON/OFF (Save every 5 frames)
 
 https://github.com/lsy0727/depth-camera/blob/d7d66afd0ce0134d1f896fb9c8a47240c467ef1b/luxonis/collect_data.py#L305
 
-press 'space' : Save a frame
+- press 'space' : Save a frame
 
-press 'q' or 'esc' : close
+- press 'q' or 'esc' : close
 
 
 2. depth_test.py
 ```
 uv run depth_test.py
 ```
-Print depth in the terminal
+- Print depth in the terminal
