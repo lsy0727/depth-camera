@@ -42,7 +42,7 @@ uv run collect_data.py
 ```
 press 'a' : Auto-save frame ON/OFF (Save every 5 frames)
 
-https://github.com/lsy0727/depth-camera/blob/04ec97d85b34c6644cb1f83fa27ec1b7ff86b7d1/luxonis/collect_data.py#L305C5-L305C91
+https://github.com/lsy0727/depth-camera/blob/d7d66afd0ce0134d1f896fb9c8a47240c467ef1b/luxonis/collect_data.py#L305
 
 press 'space' : Save a frame
 
