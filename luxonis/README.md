@@ -55,6 +55,6 @@ uv run depth_test.py
 ```
 - Print depth in the terminal
 
-<img width="1630" height="536" alt="image" src="https://github.com/user-attachments/assets/910bb7ac-2285-43cf-b094-b2239c322b80" />
+<img width="1631" height="540" alt="image" src="https://github.com/user-attachments/assets/a66e81eb-6298-4bef-9168-daec6e308d3c" />
 
 <img width="698" height="634" alt="image" src="https://github.com/user-attachments/assets/92f848bf-c25f-482d-96a9-a5083f94d56f" />
