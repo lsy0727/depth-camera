@@ -1,4 +1,4 @@
-[install uv](https://github.com/lsy0727/uv_setting)
+## [install uv](https://github.com/lsy0727/uv_setting)
 
 # Environment setup (PowerShell)
 
