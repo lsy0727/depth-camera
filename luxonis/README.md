@@ -32,3 +32,23 @@ uv pip install -r requirements.txt
 ```
 uv run collect_data.py
 ```
+
+
+# Manual
+
+* collect_data.py
+```
+uv run collect_data.py
+```
+press 'a' : Auto-save frame ON/OFF (Save every 5 frames)
+
+press 'space' : Save a frame
+
+press 'q' or 'esc' : close
+
+
+* depth_test.py
+```
+uv run depth_test.py
+```
+Print depth in the terminal
