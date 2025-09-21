@@ -18,7 +18,8 @@ class OAKDDataCollector:
         os.makedirs(self.depth_dir, exist_ok=True)
         os.makedirs(self.annotations_dir, exist_ok=True)
         
-        self.frame_count = 0
+        self.processed_count = 0
+        self.saved_count = 0
         self.current_depth_frame = None
         self.mouse_pos = (0, 0)
         self.setup_pipeline()
@@ -38,14 +39,14 @@ class OAKDDataCollector:
         # 스테레오 깊이 카메라 설정
         self.stereo = self.pipeline.create(dai.node.StereoDepth)
         self.stereo.setDefaultProfilePreset(dai.node.StereoDepth.PresetMode.HIGH_DENSITY)
-        self.stereo.initialConfig.setConfidenceThreshold(245)  # 230 -> 245
-        self.stereo.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)  # MEDIAN_OFF -> KERNEL_7x7
+        self.stereo.initialConfig.setConfidenceThreshold(255)  # 245 -> 255
+        self.stereo.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)
         self.stereo.setDepthAlign(dai.CameraBoardSocket.CAM_A)
         self.stereo.setLeftRightCheck(True)
         self.stereo.setSubpixel(True)
-        self.stereo.setExtendedDisparity(False)  # True -> False
-        self.stereo.initialConfig.setDisparityShift(0)  # 10 -> 0
-        self.stereo.setOutputSize(640, 400)  # 1280x800 -> 640x400
+        self.stereo.setExtendedDisparity(False)
+        self.stereo.initialConfig.setDisparityShift(0)
+        self.stereo.setOutputSize(640, 400)
         
         # 공간 필터 비활성화
         cfg = self.stereo.initialConfig.get()
@@ -55,7 +56,7 @@ class OAKDDataCollector:
         # 모노 카메라 설정
         self.mono_left = self.pipeline.create(dai.node.MonoCamera)
         self.mono_right = self.pipeline.create(dai.node.MonoCamera)
-        self.mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)  # 800p -> 400p
+        self.mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
         self.mono_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
         self.mono_left.setBoardSocket(dai.CameraBoardSocket.CAM_B)
         self.mono_right.setBoardSocket(dai.CameraBoardSocket.CAM_C)
@@ -76,19 +77,22 @@ class OAKDDataCollector:
         self.stereo.depth.link(self.xout_depth.input)
     
     def save_frame_data(self, frame_rgb, frame_depth, fps=None):
-        """프레임 데이터 저장 (640x400 해상도)"""
+        """프레임 데이터 저장 (Depth 클리핑 적용)"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
-        frame_id = f"frame_{self.frame_count:06d}_{timestamp}"
+        frame_id = f"frame{self.saved_count}"
         
-        # 저장을 위해 프레임 리사이즈
+        # RGB 프레임 저장
         frame_rgb_saved = cv2.resize(frame_rgb, (640, 400))
-        frame_depth_saved = cv2.resize(frame_depth, (640, 400), interpolation=cv2.INTER_NEAREST)
+        rgb_path = os.path.join(self.rgb_dir, f"{frame_id}.png")
+        cv2.imwrite(rgb_path, frame_rgb_saved, [cv2.IMWRITE_PNG_COMPRESSION, 0])
         
-        rgb_path = os.path.join(self.rgb_dir, f"{frame_id}.jpg")
-        cv2.imwrite(rgb_path, frame_rgb_saved)
-        
+        # Depth 프레임 클리핑 및 저장
+        min_depth = 100
+        max_depth = 5000
+        frame_depth_clipped = np.clip(frame_depth, min_depth, max_depth) * (frame_depth > 0)
+        frame_depth_saved = cv2.resize(frame_depth_clipped, (640, 400), interpolation=cv2.INTER_NEAREST)
         depth_path = os.path.join(self.depth_dir, f"{frame_id}.png")
-        cv2.imwrite(depth_path, frame_depth_saved.astype(np.uint16))
+        cv2.imwrite(depth_path, frame_depth_saved.astype(np.uint16), [cv2.IMWRITE_PNG_COMPRESSION, 0])
         
         valid_depth = frame_depth[frame_depth > 0]
         depth_stats = {}
@@ -118,7 +122,7 @@ class OAKDDataCollector:
         metadata = {
             "frame_id": frame_id,
             "timestamp": timestamp,
-            "rgb_path": f"rgb/{frame_id}.jpg",
+            "rgb_path": f"rgb/{frame_id}.png",
             "depth_path": f"depth/{frame_id}.png",
             "rgb_shape": frame_rgb_saved.shape,
             "depth_shape": frame_depth_saved.shape,
@@ -131,7 +135,7 @@ class OAKDDataCollector:
                 "raw_depth_resolution": "640x400",
                 "depth_align": "CAM_A",
                 "median_filter": "KERNEL_7x7",
-                "confidence_threshold": 245,
+                "confidence_threshold": 255,
                 "left_right_check": True,
                 "subpixel": True,
                 "extended_disparity": False,
@@ -149,7 +153,6 @@ class OAKDDataCollector:
         with open(metadata_path, 'w') as f:
             json.dump(metadata, f, indent=2)
         
-        self.frame_count += 1
         return frame_id, metadata
     
     def mouse_callback(self, event, x, y, flags, param):
@@ -181,6 +184,8 @@ class OAKDDataCollector:
                 cv2.setMouseCallback("OAK-D Depth Camera", self.mouse_callback)
                 
                 while True:
+                    self.processed_count += 1  # 프레임 처리 카운트 증가
+                    
                     in_rgb = q_rgb.get()
                     in_depth = q_depth.get()
                     frame_rgb = in_rgb.getCvFrame()
@@ -241,7 +246,7 @@ class OAKDDataCollector:
                         fps_counter = 0
                         start_time = time.time()
                     
-                    status_text = f"Frames: {self.frame_count} Valid: {depth_stats['valid_ratio']:.2f}"
+                    status_text = f"Frames: {self.processed_count} Valid: {depth_stats['valid_ratio']:.2f}"
                     if continuous_save:
                         status_text += " [AUTO SAVE]"
                     
@@ -260,7 +265,7 @@ class OAKDDataCollector:
                         cv2.putText(depth_vis_color, "No depth data", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
                     
                     should_save = False
-                    if continuous_save and self.frame_count % save_interval == 0:
+                    if continuous_save and self.processed_count % save_interval == 0:
                         should_save = True
                     
                     cv2.imshow("OAK-D RGB Camera", frame_rgb)
@@ -278,8 +283,9 @@ class OAKDDataCollector:
                     if should_save:
                         frame_id, metadata = self.save_frame_data(frame_rgb_original, frame_depth_original, current_fps)
                         print(f"저장됨: {frame_id} (FPS: {current_fps:.1f}, Valid Ratio: {metadata['depth_stats']['valid_ratio']:.2f}, Noise Ratio: {metadata['depth_stats']['noise_ratio']:.2f})")
+                        self.saved_count += 1
                         
-                        if max_frames and self.frame_count >= max_frames:
+                        if max_frames and self.saved_count >= max_frames:
                             print(f"최대 프레임 수({max_frames})에 도달했습니다.")
                             break
                             
@@ -289,7 +295,7 @@ class OAKDDataCollector:
         
         finally:
             cv2.destroyAllWindows()
-            print(f"데이터 수집 완료. 총 {self.frame_count}개 프레임 저장됨.")
+            print(f"데이터 수집 완료. 총 {self.saved_count}개 프레임 저장됨.")
             print(f"저장 위치: {self.output_dir}")
 
 def main():
