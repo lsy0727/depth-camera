@@ -57,7 +57,11 @@ uv run depth_test.py
 ```
 - Print depth in the terminal
 
-<img width="1631" height="540" alt="image" src="https://github.com/user-attachments/assets/a66e81eb-6298-4bef-9168-daec6e308d3c" />
+<img width="1628" height="538" alt="image" src="https://github.com/user-attachments/assets/bcaa7bf0-f9c1-4420-a9e3-bbf609deb198" />
+
+Saved Frames : Number of frames saved
+
+valid : The ratio of pixels with valid depth values among all pixels
 
 <img width="729" height="662" alt="image" src="https://github.com/user-attachments/assets/40e39f99-0d82-4982-86e9-029623b5761e" />
 
