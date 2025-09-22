@@ -57,7 +57,7 @@ uv run depth_test.py
 ```
 - Print depth in the terminal
 
-<img width="1628" height="538" alt="image" src="https://github.com/user-attachments/assets/bcaa7bf0-f9c1-4420-a9e3-bbf609deb198" />
+<img width="1630" height="540" alt="image" src="https://github.com/user-attachments/assets/c6174be4-e87a-4448-86a3-cb3ce487a472" />
 
 Saved Frames : Number of frames saved
 
