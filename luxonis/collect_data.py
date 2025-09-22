@@ -246,9 +246,10 @@ class OAKDDataCollector:
                         fps_counter = 0
                         start_time = time.time()
                     
-                    status_text = f"Frames: {self.processed_count} Valid: {depth_stats['valid_ratio']:.2f}"
+                    status_text = f"Saved Frames: {self.saved_count} Valid: {depth_stats['valid_ratio']:.2f}"
                     if continuous_save:
                         status_text += " [AUTO SAVE]"
+
                     
                     if current_fps > 0:
                         fps_text = f"FPS: {current_fps:.1f}"
