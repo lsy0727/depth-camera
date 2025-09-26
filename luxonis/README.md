@@ -2,10 +2,9 @@
 
 Dataset collection using Luxonis OAK-D camera
 
-
-## [install uv](https://github.com/lsy0727/uv_setting)
-
 # Environment setup (PowerShell)
+
+[install uv](https://github.com/lsy0727/uv_setting)
 
 1. Verify the installed Python version
 ```
