@@ -1,3 +1,8 @@
+# [luxonis](https://www.luxonis.com/)
+
+Dataset collection using Luxonis OAK-D camera
+
+
 ## [install uv](https://github.com/lsy0727/uv_setting)
 
 # Environment setup (PowerShell)
