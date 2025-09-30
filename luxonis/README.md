@@ -67,5 +67,3 @@ Saved Frames : Number of frames saved
 
 valid : The ratio of pixels with valid depth values among all pixels
 
-<img width="729" height="662" alt="image" src="https://github.com/user-attachments/assets/40e39f99-0d82-4982-86e9-029623b5761e" />
-
