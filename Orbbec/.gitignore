@@ -1,0 +1,18 @@
+# Vendored Orbbec SDK -- official download, not source we maintain
+OrbbecSDK_v1.10.35/
+
+# Runtime logs
+Log/
+log.txt
+
+# Capture output (user data, not source)
+captures/
+
+# PyInstaller build artifacts (capture_dataset.exe itself is kept, but not
+# the intermediate build/ dir or a local build venv)
+build/
+.build_venv/
+
+# Python
+__pycache__/
+*.pyc
